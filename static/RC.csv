@@ -1,0 +1,4 @@
+"H1-1","<DESCRIPTION>","warning","Instantiation will be come invalid","/Program.cs","23","14","23","14"
+"H1-2","<DESCRIPTION>","warning","Caller to method is still present","/Program.cs","39","9","39","14"
+"H2-1","<DESCRIPTION>","warning","Subclass is removed from the inheritance tree","/Program.cs","12","23","12","26"
+"H2-1","<DESCRIPTION>","warning","Subclass is removed from the inheritance tree","/Program.cs","16","14","16","14"
