@@ -55,6 +55,26 @@
 		[new Option('BranchA', branchA), new Option('BranchB', branchB)]
 	);
 
+	// let branchA = new Advice(
+	// 	"Klasse B verwijderen",
+	// 	["Blablabla"],
+	// 	[]
+	// );
+
+	// let branchB = new Advice(
+	// 	"Superklasse van B verwijderen",
+	// 	["Blablabla"],
+	// 	[]
+	// );
+
+	// let advice = new Advice(
+	// 	'Verwijder Klasse A',
+	// 	["Klasse A heeft nog een subklasse B.\n\tVerwijder klasse B, of verwijder de superklasse van klasse B."],
+	// 	[],
+	// 	[new Option('Klasse B verwijderen', branchA),
+	// 	new Option('Superklasse van klasse B verwijderen', branchB)]
+	// );
+
 	let adviceTree: AdviceNodeData[] = [];
 	let activeNode: AdviceNodeData = undefined;
 	let treeRoot: AdviceNodeData = undefined;
@@ -167,7 +187,7 @@
 
 <style>
 	.adviceMessage {
-		white-space: pre-line;
+		white-space: pre-wrap;
 		margin: 0;
 	}
 
@@ -189,6 +209,7 @@
 
 	.adviceCheckbox {
 		margin-right: 1em;
+		align-self: baseline;
 	}
 
 	.adviceCheckbox:checked ~ .adviceMessage {

@@ -25,6 +25,7 @@
   .tooltip {
     position: relative;
     display: inline-block;
+    white-space: pre-line;
   }
 
   .tooltip .tooltiptext {

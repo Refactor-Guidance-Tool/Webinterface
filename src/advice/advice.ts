@@ -32,7 +32,12 @@ export class Advice {
       // Then, try searching again for the regex.
       const hazard = this.findHazard(id);
       if (hazard !== null) {
-        messages.push(message.substring(0, message.indexOf(replacer)));
+        // If the last character is a space, remove it, because white-space: pre-line; adds whitespace automatically.
+        let messageToPush = message.substring(0, message.indexOf(replacer));
+        if (messageToPush[messageToPush.length - 1] == ' ')
+          messageToPush = messageToPush.slice(0, -1);
+
+        messages.push(messageToPush);
         hazards.push({title: text, message: `${hazard.name}: line ${hazard.line} in file ${hazard.file}`});
 
         message = message.substring(message.indexOf(array[0]) + array[0].length);
