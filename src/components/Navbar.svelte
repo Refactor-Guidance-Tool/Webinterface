@@ -1,3 +1,8 @@
+<script>
+	export let refactorClb = function() {};
+	export let visualizationClb = function() {};
+</script>
+
 <div class="header">
 	<div class="header-segment">
 		<a href="/" class="title">
@@ -7,8 +12,8 @@
 			<div>Refactor Guidance Tool</div>
 		</a>
 		<div class="divider"/>
-		<a href="refactoring" class="header-item">Refactoring</a>
-		<a href="visualization" class="header-item">Graph visualization</a>
+		<a href="/" class="header-item" on:click={refactorClb}>Refactoring</a>
+		<a href="/" class="header-item" on:click={visualizationClb}>Graph visualization</a>
 		<div class="divider"/>
 	</div>
 

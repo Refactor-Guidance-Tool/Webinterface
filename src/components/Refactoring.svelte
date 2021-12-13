@@ -14,6 +14,9 @@
 	import AdviceMessage from '../AdviceMessage.svelte';
 	import { pendingRefactor } from '../stores';
 
+    export let refactorClb = function() {};
+	export let visualizationClb = function() {};
+
 	let branchAAA = new Advice('Refactoring Branch AAA', ['You selected branch AAA.'], [], []);
 	let branchAA = new Advice(
 		'Refactoring Branch AA',
@@ -54,26 +57,6 @@
 		],
 		[new Option('BranchA', branchA), new Option('BranchB', branchB)]
 	);
-
-	// let branchA = new Advice(
-	// 	"Klasse B verwijderen",
-	// 	["Blablabla"],
-	// 	[]
-	// );
-
-	// let branchB = new Advice(
-	// 	"Superklasse van B verwijderen",
-	// 	["Blablabla"],
-	// 	[]
-	// );
-
-	// let advice = new Advice(
-	// 	'Verwijder Klasse A',
-	// 	["Klasse A heeft nog een subklasse B.\n\tVerwijder klasse B, of verwijder de superklasse van klasse B."],
-	// 	[],
-	// 	[new Option('Klasse B verwijderen', branchA),
-	// 	new Option('Superklasse van klasse B verwijderen', branchB)]
-	// );
 
 	let adviceTree: AdviceNodeData[] = [];
 	let activeNode: AdviceNodeData = undefined;
@@ -147,7 +130,7 @@
 	<Advicenode data={treeRoot} setActiveNode={setActiveNode} />
 </div>
 
-<Header />
+<Header {refactorClb} {visualizationClb} />
 
 <Container>
 	<!-- Breadcrumbs -->
