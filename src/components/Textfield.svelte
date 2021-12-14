@@ -1,7 +1,7 @@
 <script type="ts">
-	export let name: string;
-    export let placeholder: string;
-	export let onInput = (e: Event) => {};
+	export let name = "";
+    export let placeholder = "";
+	export let onInput = function(e) {};
 	export let extraStyling = "";
 </script>
 

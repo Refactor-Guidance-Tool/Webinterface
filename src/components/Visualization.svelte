@@ -11,6 +11,10 @@
 	import { currentProjectUuid } from '../stores';
     import Textfield from '../components/Textfield.svelte';
     import Button from '../components/Button.svelte';
+    import PageControl from '../components/PageControl.svelte';
+    import MultiSelect from '../components/MultiSelect.svelte';
+
+    const maxItems = 20;
 
     export let refactorClb = function() {};
 	export let visualizationClb = function() {};
@@ -20,7 +24,8 @@
 		activeProjectUuid = currentProjectUuid;
 
         await getProjects();
-        getCodeElements();
+        await getKindsOfCodeElements();
+        await getCodeElements();
 	});
 
     async function getProjects() {
@@ -33,20 +38,51 @@
 
 		const json = await res.json();
 
-        codeElements = undefined;
-		setTimeout(() => {
-			// Making it undefined, and populating it a bit later will cause the svelte component to update
-            projects = [];
-            for (const uuid of json.projectUuids) {
-                projects.push(new Project(uuid, 1));
-            }
+        // Making it undefined, and populating it a bit later will cause the svelte component to update
+        projects = [];
+        for (const uuid of json.projectUuids) {
+            const language = await getProjectLanguage(uuid);
+            projects = [...projects, new Project(uuid, language)];
+        }
 
-            if (projects.length !== 0) {
-                selectedProject = projects[0];
-                activeProjectUuid = selectedProject.id;
-                getCodeElements();
-            }
-		}, 1);
+        if (projects.length !== 0) {
+            selectedProject = projects[0];
+            activeProjectUuid = selectedProject.id;
+            await getKindsOfCodeElements();
+            await getCodeElements();
+        }
+    }
+
+    async function getProjectLanguage(uuid: string): Promise<number> {
+        const res = await fetch(`http://localhost:1337/Projects/${uuid}`, {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		});
+
+		const json = await res.json();
+        return json.language;
+    }
+
+    async function getKindsOfCodeElements() {
+        if (activeProjectUuid === '') {
+			return;
+		}
+
+        const res = await fetch(`http://localhost:1337/Projects/${activeProjectUuid}/codeElementTypes`, {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		});
+
+		const json = await res.json();
+        kindsOfCodeElements = [...json.codeElementTypes];
+
+        if (elementWhitelist === undefined) {
+            elementWhitelist = kindsOfCodeElements;
+        }
     }
 
 	async function getCodeElements() {
@@ -54,7 +90,8 @@
 			return;
 		}
 
-		const res = await fetch(`http://localhost:1337/Projects/${activeProjectUuid}/CodeElements`, {
+        const offset = currentPage * maxItems;
+		const res = await fetch(`http://localhost:1337/Projects/${activeProjectUuid}/codeElements?offset=${offset}&limit=${maxItems}&nameFilter=!${nameFilterValue}&typeFilter=${elementWhitelist.concat(",")}`, {
 			method: 'GET',
 			headers: {
 				'Content-Type': 'application/json'
@@ -63,11 +100,14 @@
 
 		const json = await res.json();
 
-		codeElements = undefined;
-		setTimeout(() => {
-			// Making it undefined, and populating it a bit later will cause the svelte component to update
-			codeElements = json.codeElements;
-		}, 1);
+        if (offset == 0) {
+            numCodeElementPages = Math.ceil(json.remaining / maxItems) + 1;
+        }
+
+        codeElements = [...json.codeElements];
+        if(codeElements.length !== 0) {
+            selectElementClb(codeElements[0]);
+        }
 	}
 
     async function getSelectedCodeElementRefactorings() {
@@ -84,14 +124,10 @@
 
 		const json = await res.json();
 
-        selectedCodeElementRefactorings = undefined;
-		setTimeout(() => {
-			// Making it undefined, and populating it a bit later will cause the svelte component to update
-			selectedCodeElementRefactorings = json.refactorings;
-            if (selectedCodeElementRefactorings.length !== 0) {
-                selectRefactoringClb(selectedCodeElementRefactorings[0]);
-            }
-		}, 1);
+        selectedCodeElementRefactorings = [...json.refactorings];
+        if (selectedCodeElementRefactorings.length !== 0) {
+            selectRefactoringClb(selectedCodeElementRefactorings[0]);
+        }
     }
 
     async function getSelectedRefactoringSettings() {
@@ -99,7 +135,6 @@
             return;
         }
 
-        // TODO: backend needs endpoint so we know what the project language is
         const res = await fetch(`http://localhost:1337/Refactorings/${selectedRefactoring.id}/settings?projectLanguage=${selectedProject.language}`, {
 			method: 'GET',
 			headers: {
@@ -108,18 +143,14 @@
 		});
 
 		const json = await res.json();
-
-        selectedRefactoringSettings = undefined;
-		setTimeout(() => {
-			// Making it undefined, and populating it a bit later will cause the svelte component to update
-			selectedRefactoringSettings = json;
-		}, 1);
+        selectedRefactoringSettings = [...json];
     }
 
-    function selectProjectClb(project: Project) {
+    async function selectProjectClb(project: Project) {
         selectedProject = project;
         activeProjectUuid = selectedProject.id;
-        getCodeElements();
+        await getKindsOfCodeElements();
+        await getCodeElements();
     }
 
     function selectElementClb(codeElement: CodeElement) {
@@ -136,6 +167,18 @@
 
     }
 
+    function onCodeElementPageChanged(newPage: number) {
+        codeElements = undefined;
+        getCodeElements();
+    }
+
+    let nameFilterValue = "";
+    function onNameFilterInput(e) {
+        nameFilterValue = e.target.value;
+        getCodeElements();
+    }
+
+    let kindsOfCodeElements: string[] = undefined;
     let codeElements: CodeElement[] = undefined;
     let projects: Project[] = undefined;
 
@@ -145,6 +188,17 @@
 
     let selectedCodeElementRefactorings: Refactoring[] = undefined;
     let selectedRefactoringSettings: RefactorSetting[] = undefined;
+
+    let currentPage = 0;
+    let numCodeElementPages = 1;
+
+    let elementWhitelist: string[] = kindsOfCodeElements;
+
+    $: {
+        if (elementWhitelist) {
+            getCodeElements();
+        }
+    }
 </script>
 
 <Header {refactorClb} {visualizationClb} />
@@ -165,9 +219,23 @@
 
                 <hr>
 
+                {#if kindsOfCodeElements !== undefined}
+                    <Textfield placeholder={"Name filter"} onInput={onNameFilterInput} extraStyling={"width:100%;margin-bottom:10px;"}/>
+                    <MultiSelect id="elementWhitelist" bind:value={elementWhitelist}>
+                        {#each kindsOfCodeElements as elementType}
+                            <option value="{elementType}">{elementType}</option>
+                        {/each}
+                    </MultiSelect>
+                    <hr>
+                {/if}
+
 				{#if codeElements !== undefined}
 					<CodeElementView {codeElements} selectClb={selectElementClb} bind:selectedCodeElement={selectedCodeElement}/>
 				{/if}
+
+                <hr>
+
+                <PageControl numPages={numCodeElementPages} bind:pageIndex={currentPage} onPageChanged={onCodeElementPageChanged}/>
 		</div>
 
         <div class="info-container">
@@ -186,7 +254,15 @@
 
             {#if selectedRefactoringSettings !== undefined}
                 {#each selectedRefactoringSettings as setting}
-                    {#if setting.type == "something"}
+                    {#if setting.type == "boolean"}
+                        <!-- draw widget here -->
+                    {/if}
+
+                    {#if setting.type == "choice"}
+                        <!-- draw widget here -->
+                    {/if}
+                    
+                    {#if setting.type == "string"}
                         <!-- draw widget here -->
                     {/if}
                 {/each}

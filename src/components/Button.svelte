@@ -1,5 +1,5 @@
 <script type="ts">
-    export let onClick: () => void;
+    export let onClick = function(){};
 	export let extraStyling = "";
 </script>
 

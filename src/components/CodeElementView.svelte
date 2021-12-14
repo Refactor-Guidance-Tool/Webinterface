@@ -6,7 +6,7 @@
 	export let selectedCodeElement: CodeElement;
 </script>
 
-{#each codeElements as codeElement}
+{#each codeElements as codeElement, i}
 	<div class="container">
 		<label>
 			<input type="checkbox"/>
