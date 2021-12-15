@@ -51,7 +51,7 @@
         }
 
         if (projects.length !== 0) {
-            // if (activeProjectUuid == "") {
+            //if (activeProjectUuid == "") {
                 selectedProject = projects[0];
                 activeProjectUuid = selectedProject.id;
             // } else {
@@ -338,7 +338,7 @@
 
                     {#if setting.type == "choice"}
                         <!-- draw widget here -->
-                        Choise setting
+                        Choice setting
                     {/if}
                     
                     {#if setting.type == "string"}
