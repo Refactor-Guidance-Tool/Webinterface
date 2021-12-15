@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { CodeElement } from '../types/CodeElement';
     import type { Refactoring } from '../types/Refactoring';
-    import type { RefactorSetting } from '../types/RefactorSetting';
+    import type { SubjectRefactorSetting, StringRefactorSetting, ChoiseRefactorSetting, BooleanRefactorSetting, RefactorSetting } from '../types/RefactorSetting';
     import { Project } from '../types/Project.d';
 
 	import Header from '../components/Navbar.svelte';
@@ -25,7 +25,12 @@
 
         await getProjects();
         await getKindsOfCodeElements();
-        await getCodeElements();
+        const elements = await getCodeElements(activeProjectUuid, maxItems, nameFilterValue, elementWhitelist.concat(",").toString());
+
+        codeElements = [...elements];
+        if(codeElements.length !== 0) {
+            selectElementClb(codeElements[0]);
+        }
 	});
 
     async function getProjects() {
@@ -46,10 +51,26 @@
         }
 
         if (projects.length !== 0) {
-            selectedProject = projects[0];
-            activeProjectUuid = selectedProject.id;
+            // if (activeProjectUuid == "") {
+                selectedProject = projects[0];
+                activeProjectUuid = selectedProject.id;
+            // } else {
+            //     // For when we use the start page and get the projectid passed from the code editor extension
+            //     for (const project of projects) {
+            //         if (project.id == activeProjectUuid) {
+            //             selectedProject = project;
+            //             break;
+            //         }
+            //     }
+            // }
+
             await getKindsOfCodeElements();
-            await getCodeElements();
+            const elements = await getCodeElements(activeProjectUuid, maxItems, nameFilterValue, elementWhitelist.concat(",").toString());
+
+            codeElements = [...elements];
+            if(codeElements.length !== 0) {
+                selectElementClb(codeElements[0]);
+            }
         }
     }
 
@@ -85,13 +106,13 @@
         }
     }
 
-	async function getCodeElements() {
+	async function getCodeElements(projectUuid: string, numItems: number, nameFilter: string, typeFilter: string, usePaging: boolean = true) : Promise<CodeElement[]> {
 		if (activeProjectUuid === '') {
 			return;
 		}
 
-        const offset = currentPage * maxItems;
-		const res = await fetch(`http://localhost:1337/Projects/${activeProjectUuid}/codeElements?offset=${offset}&limit=${maxItems}&nameFilter=!${nameFilterValue}&typeFilter=${elementWhitelist.concat(",")}`, {
+        const offset = usePaging ? currentPage * maxItems : 0;
+		const res = await fetch(`http://localhost:1337/Projects/${projectUuid}/codeElements?offset=${offset}&limit=${numItems}&nameFilter=!${nameFilter}&typeFilter=${typeFilter}`, {
 			method: 'GET',
 			headers: {
 				'Content-Type': 'application/json'
@@ -100,14 +121,11 @@
 
 		const json = await res.json();
 
-        if (offset == 0) {
+        if (usePaging && offset == 0) {
             numCodeElementPages = Math.ceil(json.remaining / maxItems) + 1;
         }
 
-        codeElements = [...json.codeElements];
-        if(codeElements.length !== 0) {
-            selectElementClb(codeElements[0]);
-        }
+        return json.codeElements;
 	}
 
     async function getSelectedCodeElementRefactorings() {
@@ -130,27 +148,54 @@
         }
     }
 
-    async function getSelectedRefactoringSettings() {
-        if (selectedRefactoring === undefined) {
-            return;
-        }
+    type SettingDTO = {
+        booleanSetting?: BooleanRefactorSetting
+        choiceSetting?: ChoiseRefactorSetting
+        stringSetting?: StringRefactorSetting
+        subjectSetting?: SubjectRefactorSetting
+    }
 
-        const res = await fetch(`http://localhost:1337/Refactorings/${selectedRefactoring.id}/settings?projectLanguage=${selectedProject.language}`, {
+    async function getRefactoringSettings(id: string) {
+        const res = await fetch(`http://localhost:1337/Refactorings/${id}/settings?projectLanguage=${selectedProject.language}`, {
 			method: 'GET',
 			headers: {
 				'Content-Type': 'application/json'
 			}
 		});
 
-		const json = await res.json();
-        selectedRefactoringSettings = [...json];
+		const response: SettingDTO[] = await res.json();
+
+        var settings = [];
+        for (const setting of response) {
+            if (setting.booleanSetting !== null) {
+                settings.push(setting.booleanSetting);
+            }
+            else if (setting.choiceSetting !== null) {
+                settings.push(setting.choiceSetting);
+            }
+            else if (setting.stringSetting !== null) {
+                settings.push(setting.stringSetting);
+            }
+            else if (setting.subjectSetting !== null) {
+                settings.push(setting.subjectSetting);
+            }
+        }
+
+        selectedRefactoringSettings = [...settings];
     }
 
     async function selectProjectClb(project: Project) {
         selectedProject = project;
         activeProjectUuid = selectedProject.id;
         await getKindsOfCodeElements();
-        await getCodeElements();
+        await getCodeElements(activeProjectUuid, maxItems, nameFilterValue, elementWhitelist.concat(",").toString());
+
+        const elements = await getCodeElements(activeProjectUuid, maxItems, nameFilterValue, elementWhitelist.concat(",").toString());
+
+        codeElements = [...elements];
+        if(codeElements.length !== 0) {
+            selectElementClb(codeElements[0]);
+        }
     }
 
     function selectElementClb(codeElement: CodeElement) {
@@ -158,24 +203,37 @@
         getSelectedCodeElementRefactorings();
     }
 
-    function selectRefactoringClb(refactoring: Refactoring) {
+    async function selectRefactoringClb(refactoring: Refactoring) {
         selectedRefactoring = refactoring;
-        getSelectedRefactoringSettings();
+        getRefactoringSettings(selectedRefactoring.id);
     }
 
-    function executeRefactoring() {
+    async function executeRefactoring() {
+        // for debugging
+        console.log(refactorSettingsResp);
 
+        const res = await fetch(`http://localhost:1337/Refactorings/${selectedRefactoring.id}/hazards?projectId=${selectedProject.id}`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+			},
+            body: JSON.stringify(refactorSettingsResp)
+		});
+
+		const json = await res.json();
+        console.log(JSON.parse(json));
     }
 
     function onCodeElementPageChanged(newPage: number) {
         codeElements = undefined;
-        getCodeElements();
+        getCodeElements(activeProjectUuid, maxItems, nameFilterValue, elementWhitelist.concat(",").toString()).then(elements => codeElements = [...elements]);
     }
 
     let nameFilterValue = "";
     function onNameFilterInput(e) {
         nameFilterValue = e.target.value;
-        getCodeElements();
+        getCodeElements(activeProjectUuid, maxItems, nameFilterValue, elementWhitelist.concat(",").toString()).then(elements => codeElements = [...elements]);
     }
 
     let kindsOfCodeElements: string[] = undefined;
@@ -187,7 +245,11 @@
     let selectedRefactoring: Refactoring = undefined;
 
     let selectedCodeElementRefactorings: Refactoring[] = undefined;
-    let selectedRefactoringSettings: RefactorSetting[] = undefined;
+
+    type RefactorSettingType = SubjectRefactorSetting | StringRefactorSetting | ChoiseRefactorSetting | BooleanRefactorSetting;
+    let selectedRefactoringSettings: RefactorSettingType[] = undefined;
+
+    let refactorSettingsResp = new Map<string, string>();
 
     let currentPage = 0;
     let numCodeElementPages = 1;
@@ -196,7 +258,7 @@
 
     $: {
         if (elementWhitelist) {
-            getCodeElements();
+            getCodeElements(activeProjectUuid, maxItems, nameFilterValue, elementWhitelist.concat(",").toString()).then(elements => codeElements = [...elements]);
         }
     }
 </script>
@@ -226,6 +288,7 @@
                             <option value="{elementType}">{elementType}</option>
                         {/each}
                     </MultiSelect>
+
                     <hr>
                 {/if}
 
@@ -239,7 +302,7 @@
 		</div>
 
         <div class="info-container">
-            <Heading content="Info"/>
+            <Heading content="Refactor"/>
 
             {#if selectedCodeElementRefactorings !== undefined}
                 Select refactoring:<br>
@@ -253,17 +316,34 @@
             {/if}
 
             {#if selectedRefactoringSettings !== undefined}
-                {#each selectedRefactoringSettings as setting}
+                {#each selectedRefactoringSettings as setting, i}
+                    {setting.label}:
+                    <br>
+
+                    {#if setting.type == "subject"}
+                        <select style="width:100%" on:input="{(e) => refactorSettingsResp[setting.identifier] = e.target.value}">
+                            <option value="" selected disabled hidden>Select a subject...</option>
+                            {#await getCodeElements(activeProjectUuid, 9999, "", setting.codeElementType, false) then elements}
+                                {#each elements as element, i}
+                                    <option value="{element.name}">{element.name}</option>
+                                {/each}
+                            {/await}
+                        </select>
+                    {/if}
+
                     {#if setting.type == "boolean"}
                         <!-- draw widget here -->
+                        Boolean setting
                     {/if}
 
                     {#if setting.type == "choice"}
                         <!-- draw widget here -->
+                        Choise setting
                     {/if}
                     
                     {#if setting.type == "string"}
                         <!-- draw widget here -->
+                        String setting
                     {/if}
                 {/each}
 
