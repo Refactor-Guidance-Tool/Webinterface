@@ -20,3 +20,4 @@ export const socketStore = readable({
 });
 
 export const currentProjectUuid = writable("");
+export const refactoringOutput = writable("");

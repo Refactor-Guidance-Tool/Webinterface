@@ -12,7 +12,7 @@
 	import Advicebreadcrumbs from '../advicebreadcrumbs.svelte';
 	import type { AdviceNodeData } from 'src/AdviceNodeData';
 	import AdviceMessage from '../AdviceMessage.svelte';
-	import { pendingRefactor } from '../stores';
+	import { pendingRefactor, refactoringOutput } from '../stores';
 
     export let refactorClb = function() {};
 	export let visualizationClb = function() {};
@@ -122,6 +122,46 @@
 				setActiveNode(node)
 			});
 		}
+	});
+
+	type Position = {
+		startLine: number,
+		startColumn: number,
+		endLine: number,
+		endColumn: number
+	};
+
+	type RefactorRespDTO = {
+		message: string,
+		name: string,
+		source: string,
+		position: Position
+	};
+
+	refactoringOutput.subscribe(function(output) {
+		if (output === "") 
+			return;
+
+		let messages: string[] = [];
+		let hazards: Hazard[] = [];
+
+		let idx = 0;
+		for (const hazard of output) {
+			idx++;
+			messages.push(hazard.message);
+			hazards.push(new Hazard(idx, hazard.name, hazard.source, hazard.position.startLine));
+		}
+
+		advice = new Advice(
+			'Refactoring',
+			messages,
+			hazards
+		);
+
+		const node = { advice: advice, parent: undefined, children: [] };
+
+		addToTree(node);
+		setActiveNode(node)
 	});
 </script>
 

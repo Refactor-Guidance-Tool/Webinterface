@@ -4,7 +4,7 @@
     import { page } from "$app/stores";
     import { goto } from '$app/navigation';
 
-    currentProjectUuid.update(uuid => $page.query.get("projectUuid"));
+    currentProjectUuid.update(() => $page.query.get("projectUuid"));
 
     if (browser) {
         goto("/");

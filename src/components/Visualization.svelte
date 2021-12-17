@@ -1,14 +1,14 @@
 <script lang="ts">
 	import type { CodeElement } from '../types/CodeElement';
     import type { Refactoring } from '../types/Refactoring';
-    import type { SubjectRefactorSetting, StringRefactorSetting, ChoiseRefactorSetting, BooleanRefactorSetting, RefactorSetting } from '../types/RefactorSetting';
+    import type { SubjectRefactorSetting, StringRefactorSetting, ChoiseRefactorSetting, BooleanRefactorSetting } from '../types/RefactorSetting';
     import { Project } from '../types/Project.d';
 
 	import Header from '../components/Navbar.svelte';
 	import Container from '../components/Container.svelte';
 	import Heading from '../components/Heading.svelte';
 	import CodeElementView from './CodeElementView.svelte';
-	import { currentProjectUuid } from '../stores';
+	import { currentProjectUuid, refactoringOutput } from '../stores';
     import Textfield from '../components/Textfield.svelte';
     import Button from '../components/Button.svelte';
     import PageControl from '../components/PageControl.svelte';
@@ -209,20 +209,31 @@
     }
 
     async function executeRefactoring() {
-        // for debugging
+        if (refactorSettingsResp.size === 0) 
+            return;
+
         console.log(refactorSettingsResp);
 
-        const res = await fetch(`http://localhost:1337/Refactorings/${selectedRefactoring.id}/hazards?projectId=${selectedProject.id}`, {
-			method: 'POST',
+        let settings = "";
+        for (const setting of Array.from(refactorSettingsResp.entries())) {
+            const key = setting[0];
+            const value = setting[1];
+            settings += key + "=" + value + ",";
+        }
+
+        settings = settings.slice(0, -1);
+        const res = await fetch(`http://localhost:1337/Refactorings/${selectedRefactoring.id}/hazards?refactoringId=${selectedRefactoring.id}&projectId=${selectedProject.id}&settings=${settings}`, {
+			method: 'GET',
 			headers: {
-				'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-			},
-            body: JSON.stringify(refactorSettingsResp)
+				'Content-Type': 'application/json'
+			}
 		});
 
+        refactorSettingsResp.clear();
+
 		const json = await res.json();
-        console.log(JSON.parse(json));
+        refactoringOutput.set(json);
+        refactorClb();
     }
 
     function onCodeElementPageChanged(newPage: number) {
@@ -321,7 +332,7 @@
                     <br>
 
                     {#if setting.type == "subject"}
-                        <select style="width:100%" on:input="{(e) => refactorSettingsResp[setting.identifier] = e.target.value}">
+                        <select style="width:100%" on:input="{(e) => refactorSettingsResp.set(setting.identifier, e.target.value)}">
                             <option value="" selected disabled hidden>Select a subject...</option>
                             {#await getCodeElements(activeProjectUuid, 9999, "", setting.codeElementType, false) then elements}
                                 {#each elements as element, i}
