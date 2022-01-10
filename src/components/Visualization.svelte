@@ -24,13 +24,6 @@
 		activeProjectUuid = currentProjectUuid;
 
         await getProjects();
-        await getKindsOfCodeElements();
-        const elements = await getCodeElements(activeProjectUuid, maxItems, nameFilterValue, elementWhitelist.concat(",").toString());
-
-        codeElements = [...elements];
-        if(codeElements.length !== 0) {
-            selectElementClb(codeElements[0]);
-        }
 	});
 
     async function getProjects() {
@@ -43,7 +36,7 @@
 
 		const json = await res.json();
 
-        // Making it undefined, and populating it a bit later will cause the svelte component to update
+        // Making it empty, and populating it a bit later will cause the svelte component to update
         projects = [];
         for (const uuid of json.projectUuids) {
             const language = await getProjectLanguage(uuid);
@@ -51,18 +44,18 @@
         }
 
         if (projects.length !== 0) {
-            //if (activeProjectUuid == "") {
+            if (activeProjectUuid == "") {
                 selectedProject = projects[0];
                 activeProjectUuid = selectedProject.id;
-            // } else {
-            //     // For when we use the start page and get the projectid passed from the code editor extension
-            //     for (const project of projects) {
-            //         if (project.id == activeProjectUuid) {
-            //             selectedProject = project;
-            //             break;
-            //         }
-            //     }
-            // }
+            } else {
+                // For when we use the start page and get the projectid passed from the code editor extension
+                for (const project of projects) {
+                    if (project.id == activeProjectUuid) {
+                        selectedProject = project;
+                        break;
+                    }
+                }
+            }
 
             await getKindsOfCodeElements();
             const elements = await getCodeElements(activeProjectUuid, maxItems, nameFilterValue, elementWhitelist.concat(",").toString());
@@ -268,8 +261,9 @@
     let elementWhitelist: string[] = kindsOfCodeElements;
 
     $: {
-        if (elementWhitelist) {
-            getCodeElements(activeProjectUuid, maxItems, nameFilterValue, elementWhitelist.concat(",").toString()).then(elements => codeElements = [...elements]);
+        if (elementWhitelist !== undefined) {
+            getCodeElements(activeProjectUuid, maxItems, nameFilterValue, elementWhitelist.concat(",").toString()).then(
+                elements => codeElements = [...elements]);
         }
     }
 </script>
